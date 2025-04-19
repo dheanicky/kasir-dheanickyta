@@ -9,37 +9,47 @@ use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
-    public function dashboard(Request $request)
-    {
-        $today = Carbon::today();
-        $tomorrow = Carbon::tomorrow();
+    public function index()
+{
+    $user = Auth::user();
 
-        $transaction = Selling::whereBetween('created_at', [$today, $tomorrow])->get();
-        $count = $transaction->count();
+    $data = [
+        'count' => [
+            'users' => User::count(),
+            'contents' => Content::count(),
+            'sales' => Selling::count(),
+        ],
+        'updated' => [
+            'users' => User::latest()->first(),
+            'contents' => Content::latest()->first(),
+            'sales' => Selling::latest()->first(),
+        ],
+    ];
 
-        $updated = Selling::orderBy('created_at', 'desc')->first();
+    // Tambahkan ini hanya untuk admin
+    if ($user->role === 'admin') {
+        $sevenDays = now()->subDays(6)->startOfDay();
+        $sales = Selling::where('created_at', '>=', $sevenDays)->get();
 
-        $last7Days = Carbon::now()->subDays(6); 
-        $salesPerDay = Selling::where('created_at', '>=', $last7Days)
-            ->get()
-            ->groupBy(function($date) {
-                return Carbon::parse($date->created_at)->locale('id')->translatedFormat('l'); 
-            })
-            ->map(function($sales) {
-                return $sales->count();
-            });
-
-        $days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
         $chartLabels = [];
         $chartData = [];
 
-        foreach ($days as $day) {
-            $chartLabels[] = $day;
-            $chartData[] = $salesPerDay->get($day, 0); 
+        for ($i = 0; $i < 7; $i++) {
+            $date = now()->subDays(6 - $i)->format('Y-m-d');
+            $chartLabels[] = $date;
+            $chartData[] = $sales->whereBetween('created_at', [
+                now()->subDays(6 - $i)->startOfDay(),
+                now()->subDays(6 - $i)->endOfDay(),
+            ])->count();
         }
 
-        return view('dashboard', compact('count', 'updated', 'chartLabels', 'chartData'));
+        $data['chartLabels'] = $chartLabels;
+        $data['chartData'] = $chartData;
     }
+
+    return view('dashboard', $data);
+}
+
 
 }
 

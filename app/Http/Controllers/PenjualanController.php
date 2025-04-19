@@ -30,12 +30,11 @@ class PenjualanController extends Controller
         $request->merge([
             'total_bayar' => str_replace(['.', ','], '', $request->total_bayar),
         ]);
-        
+
         $request->validate([
             'member' => 'required|in:non-member,member',
             'total_bayar' => 'required|numeric',
         ]);
-        
 
         $user = Auth::user();
         $carts = Cart::with('product')->get();
@@ -56,11 +55,10 @@ class PenjualanController extends Controller
             $member = Members::where('phone_number', $phonenumber)->first();
 
             if ($member == null) {
-                $poinmember = $totalPrice * 10 / 100;
-
+                // Tidak kasih poin di sini!
                 $member = Members::create([
                     'phone_number' => $phonenumber,
-                    'poin_member' => $poinmember,
+                    'poin_member' => 0,
                 ]);
             }
 
@@ -95,6 +93,8 @@ class PenjualanController extends Controller
         $transaction = Selling::create([
             'member_id' => null,
             'total_price' => $totalPrice,
+            'total_pay' => $request->total_bayar,
+            'kembalian' => $kembalian,
             'user_id' => $user->id,
         ]);
 
@@ -141,84 +141,89 @@ class PenjualanController extends Controller
     }
 
     public function checkMember(Request $request)
-    {
-        $request->merge([
-            'total_bayar' => str_replace(['.', ','], '', $request->total_bayar),
-        ]);        
+{
+    $request->merge([
+        'total_bayar' => str_replace(['.', ','], '', $request->total_bayar),
+    ]);
 
-        $member = Members::where('phone_number', $request->phone_number)->first();
+    $member = Members::where('phone_number', $request->phone_number)->first();
 
-        if ($member && $request->name) {
-            $member->name = $request->name;
-            $member->save();
-        }
-
-        $user = Auth::user();
-        $carts = Cart::with('product')->get();
-
-        $totalPrice = 0;
-        foreach ($carts as $cart) {
-            $totalPrice += $cart->product->price * $cart->qty;
-        }
-
-        $poinmember = $totalPrice * 10 / 100;
-
-        if ($request->checkPoin) {
-            $totalPrice -= $member->poin_member;
-            if ($totalPrice < 0) {
-                $totalPrice = 0;
-            }
-            $member->poin_member = 0;
-            $member->save();
-        }
-
-        $totalPrice = (int) $totalPrice;
-        $kembalian = $request->total_bayar - $totalPrice;
-
-        $sellingData = [];
-        $transaction = Selling::create([
-            'member_id' => $member->id,
-            'total_price' => $totalPrice,
-            'total_pay' => $request->total_bayar,
-            'kembalian' => $kembalian,
-            'user_id' => $user->id,
-        ]);
-
-        foreach ($carts as $cart) {
-            detail_transact::create([
-                'transaction_id' => $transaction->id,
-                'product_id' => $cart->product->id,
-                'qty' => $cart->qty,
-            ]);
-
-            $product = Products::find($cart->product->id);
-            $product->stock -= $cart->qty;
-            $product->save();
-
-            $sellingData[] = [
-                'product_name' => $cart->product->name,
-                'price' => $cart->product->price,
-                'qty' => $cart->qty,
-                'subtotal' => $cart->product->price * $cart->qty,
-            ];
-        }
-
-        $member->poin_member += $poinmember;
+    if ($member && $request->name) {
+        $member->name = $request->name;
         $member->save();
-        Cart::truncate();
-
-        $invoiceNumber = Selling::orderBy('created_at', 'desc')->count() + 1;
-        $userName = $user->name;
-
-        return view('pembelian.result', [
-            'sellingData' => $sellingData,
-            'totalPrice' => $totalPrice,
-            'userName' => $userName,
-            'kembalian' => $kembalian,
-            'invoiceNumber' => $invoiceNumber,
-            'transactionId' => $transaction->id
-        ]);
     }
+
+    $user = Auth::user();
+    $carts = Cart::with('product')->get();
+
+    if ($carts->isEmpty()) {
+        return redirect()->route('penjualan.create')->with('error', 'Keranjang kosong.');
+    }
+
+    $totalPrice = 0;
+    foreach ($carts as $cart) {
+        $totalPrice += $cart->product->price * $cart->qty;
+    }
+
+    $poinmember = $totalPrice * 10 / 100;
+
+    if ($request->checkPoin) {
+        $totalPrice -= $member->poin_member;
+        if ($totalPrice < 0) {
+            $totalPrice = 0;
+        }
+        $member->poin_member = 0; // RESET kalau dipakai
+    } else {
+        $member->poin_member += $poinmember; // TAMBAH kalau nggak dipakai
+    }
+
+    $totalPrice = (int) $totalPrice;
+    $kembalian = $request->total_bayar - $totalPrice;
+
+    $sellingData = [];
+    $transaction = Selling::create([
+        'member_id' => $member->id,
+        'total_price' => $totalPrice,
+        'total_pay' => $request->total_bayar,
+        'kembalian' => $kembalian,
+        'user_id' => $user->id,
+    ]);
+
+    foreach ($carts as $cart) {
+        detail_transact::create([
+            'transaction_id' => $transaction->id,
+            'product_id' => $cart->product->id,
+            'qty' => $cart->qty,
+        ]);
+
+        $product = Products::find($cart->product->id);
+        $product->stock -= $cart->qty;
+        $product->save();
+
+        $sellingData[] = [
+            'product_name' => $cart->product->name,
+            'price' => $cart->product->price,
+            'qty' => $cart->qty,
+            'subtotal' => $cart->product->price * $cart->qty,
+        ];
+    }
+
+    $member->save();
+    Cart::truncate();
+
+    $invoiceNumber = Selling::orderBy('created_at', 'desc')->count() + 1;
+    $userName = $user->name;
+
+    return view('pembelian.result', [
+        'sellingData' => $sellingData,
+        'totalPrice' => $totalPrice,
+        'userName' => $userName,
+        'kembalian' => $kembalian,
+        'invoiceNumber' => $invoiceNumber,
+        'transactionId' => $transaction->id
+    ]);
+}
+
 
     public function CetakPdf(Request $request, $id)
     {

@@ -1,11 +1,9 @@
-@extends('main')
+<?php $__env->startSection('title', 'Dashboard'); ?>
+<?php $__env->startSection('breadcrumb', 'Dashboard'); ?>
+<?php $__env->startSection('page-title', 'Dashboard'); ?>
 
-@section('title', 'Dashboard')
-@section('breadcrumb', 'Dashboard')
-@section('page-title', 'Dashboard')
-
-@section('content')
-    @if (Auth::user()->role == 'admin')
+<?php $__env->startSection('content'); ?>
+    <?php if(Auth::user()->role == 'admin'): ?>
     <div class="container mt-5">
     <div class="text-center mb-4">
         <h3 class="fw-bold">Selamat Datang Admin!</h3>
@@ -16,7 +14,7 @@
             <div class="col-md-12">
                 <div class="card shadow-lg border-0 rounded-lg">
                     <div class="card-body">
-                        {{-- <h5 class="text-center mb-4">Ringkasan Sistem</h5> --}}
+                        
                         <div class="row">
                             <!-- Total Produk -->
                             <div class="col-md-4 mb-3">
@@ -24,7 +22,7 @@
                                     <div class="card-body">
                                         <div class="text-center mb-4">
                                             <h6 class="fw-bold fs-4">Total Produk</h6>
-                                            <p class="fw-bold fs-10">{{ $totalProduk ?? '—' }}</p>
+                                            <p class="fw-bold fs-10"><?php echo e($totalProduk ?? '—'); ?></p>
                                         </div>
                                     </div>
                                 </div>
@@ -36,7 +34,7 @@
                                     <div class="card-body">
                                         <div class="text-center mb-4">
                                             <h6 class="fw-bold fs-4">Total User</h6>
-                                            <p class="fw-bold fs-10">{{ $totalUser ?? '—' }}</p>
+                                            <p class="fw-bold fs-10"><?php echo e($totalUser ?? '—'); ?></p>
                                         </div>
                                     </div>
                                 </div>
@@ -48,7 +46,7 @@
                                     <div class="card-body">
                                         <div class="text-center mb-4">
                                             <h6 class="fw-bold fs-4">Total Transaksi</h6>
-                                            <p class="fw-bold fs-10">{{ $totalTransaksi ?? '—' }}</p>
+                                            <p class="fw-bold fs-10"><?php echo e($totalTransaksi ?? '—'); ?></p>
                                         </div>
                                     </div>
                                 </div>
@@ -62,7 +60,7 @@
                                 <div class="card shadow-sm">
                                     <div class="card-body">
                                         <h6 class="fw-bold fs-4">Terakhir Login</h6>
-                                        <p class="card-text fs-10">{{ Auth::user()->last_login_at ?? '—' }}</p>
+                                        <p class="card-text fs-10"><?php echo e(Auth::user()->last_login_at ?? '—'); ?></p>
                                     </div>
                                 </div>
                             </div>
@@ -72,9 +70,9 @@
             </div>
         </div>
     </div>
-    @endif
+    <?php endif; ?>
 
-    @if (Auth::user()->role == 'kasir')
+    <?php if(Auth::user()->role == 'kasir'): ?>
     <div class="container mt-5">
         <div class="text-center mb-4">
             <h3 class="fw-bold">Selamat Datang Petugas!</h3>
@@ -86,7 +84,7 @@
                 <div class="card shadow" style="background-color: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); color: white;">
                     <div class="card-body text-center">
                         <h5 class="fw-bold fs-4">Total Penjualan Hari Ini</h5>
-                        <h2 class="fw-bold fs-10">{{ $count }}</h2>
+                        <h2 class="fw-bold fs-10"><?php echo e($count); ?></h2>
                     </div>
                 </div>
             </div>
@@ -99,17 +97,19 @@
                 <div class="card shadow-sm">
                     <div class="card-body text-center">
                         <p class="text-muted small mb-0">
-                            @if ($updated && $updated->created_at)
-                                Terakhir diperbarui: <strong>{{ $updated->created_at->format('d-m-Y H:i:s') }}</strong>
-                            @else
+                            <?php if($updated && $updated->created_at): ?>
+                                Terakhir diperbarui: <strong><?php echo e($updated->created_at->format('d-m-Y H:i:s')); ?></strong>
+                            <?php else: ?>
                                 Tidak ada Transaksi Hari Ini
-                            @endif
+                            <?php endif; ?>
                         </p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    @endif
+    <?php endif; ?>
     
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('main', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?><?php /**PATH C:\kasir-dheanickyta\resources\views/dashboard.blade.php ENDPATH**/ ?>
